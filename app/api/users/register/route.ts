@@ -7,8 +7,7 @@ import { z } from "zod";
 import { generateId } from "@/lib/utils";
 
 const registerSchema = z.object({
-  firstName: z.string().min(1).max(50),
-  lastName: z.string().min(1).max(50),
+  name: z.string().min(2).max(100),
   email: z.string().email(),
   password: z.string().min(8),
 });
@@ -17,12 +16,14 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const parsed = registerSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    return NextResponse.json({ error: "Données invalides. Vérifiez les champs." }, { status: 400 });
   }
 
-  const { firstName, lastName, email, password } = parsed.data;
+  const { name, email, password } = parsed.data;
+  const parts = name.trim().split(" ");
+  const firstName = parts[0] ?? name;
+  const lastName = parts.slice(1).join(" ") || firstName;
 
-  // Check if email already exists
   const [existing] = await db
     .select()
     .from(users)
@@ -51,13 +52,7 @@ export async function POST(req: NextRequest) {
     .returning();
 
   return NextResponse.json(
-    {
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-      },
-    },
+    { user: { id: user.id, email: user.email, name: user.name } },
     { status: 201 }
   );
 }
