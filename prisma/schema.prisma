@@ -1,0 +1,731 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── AUTHENTICATION ───────────────────────────────────────────────────────────
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ─── USERS ───────────────────────────────────────────────────────────────────
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  firstName  String?
+  lastName   String?
+  phone      String?
+  timezone   String   @default("UTC")
+  locale     String   @default("fr")
+  bio        String?  @db.Text
+  position   String?
+  department String?
+  startDate  DateTime?
+
+  accounts     Account[]
+  sessions     Session[]
+  memberships  Membership[]
+  workSchedule WorkSchedule?
+
+  assignedTasks        Task[]               @relation("TaskAssignee")
+  createdTasks         Task[]               @relation("TaskCreator")
+  comments             Comment[]
+  timeEntries          TimeEntry[]
+  leaveRequests        LeaveRequest[]       @relation("LeaveEmployee")
+  approvedLeaves       LeaveRequest[]       @relation("LeaveApprover")
+  notifications        Notification[]
+  activityLogs         ActivityLog[]
+  projectMembers       ProjectMember[]
+  googleCalendarToken  GoogleCalendarToken?
+  googleDriveToken     GoogleDriveToken?
+
+  @@index([email])
+}
+
+// ─── ORGANIZATIONS ───────────────────────────────────────────────────────────
+
+model Organization {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String?  @db.Text
+  logo        String?
+  website     String?
+  timezone    String   @default("UTC")
+  locale      String   @default("fr")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workingDaysPerWeek Int    @default(5)
+  hoursPerDay        Float  @default(8)
+  fiscalYearStart    Int    @default(1)
+  currency           String @default("EUR")
+  dateFormat         String @default("DD/MM/YYYY")
+
+  memberships  Membership[]
+  teams        Team[]
+  projects     Project[]
+  roles        Role[]
+  taskStatuses TaskStatus[]
+  leaveTypes   LeaveType[]
+  holidays     Holiday[]
+  integrations Integration[]
+  activityLogs ActivityLog[]
+  notifications Notification[]
+
+  @@index([slug])
+}
+
+// ─── MEMBERSHIPS ─────────────────────────────────────────────────────────────
+
+model Membership {
+  id             String       @id @default(cuid())
+  userId         String
+  organizationId String
+  roleId         String
+  status         MemberStatus @default(ACTIVE)
+  invitedAt      DateTime     @default(now())
+  joinedAt       DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  role         Role         @relation(fields: [roleId], references: [id])
+  teamMembers  TeamMember[]
+
+  @@unique([userId, organizationId])
+  @@index([userId])
+  @@index([organizationId])
+  @@index([roleId])
+}
+
+enum MemberStatus {
+  INVITED
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+// ─── ROLES & PERMISSIONS ─────────────────────────────────────────────────────
+
+model Role {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  description    String?
+  color          String   @default("#6366f1")
+  isSystem       Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  permissions  RolePermission[]
+  memberships  Membership[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+}
+
+model RolePermission {
+  id       String    @id @default(cuid())
+  roleId   String
+  resource String
+  action   String
+  scope    PermScope @default(ALL)
+
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, resource, action])
+  @@index([roleId])
+}
+
+enum PermScope {
+  ALL
+  TEAM
+  OWN
+}
+
+// ─── TEAMS ────────────────────────────────────────────────────────────────────
+
+model Team {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  description    String?  @db.Text
+  color          String   @default("#6366f1")
+  icon           String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  members      TeamMember[]
+  projects     ProjectTeam[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+}
+
+model TeamMember {
+  id           String   @id @default(cuid())
+  teamId       String
+  membershipId String
+  isLead       Boolean  @default(false)
+  joinedAt     DateTime @default(now())
+
+  team       Team       @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  membership Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, membershipId])
+  @@index([teamId])
+  @@index([membershipId])
+}
+
+// ─── PROJECTS ─────────────────────────────────────────────────────────────────
+
+model Project {
+  id             String        @id @default(cuid())
+  organizationId String
+  name           String
+  description    String?       @db.Text
+  color          String        @default("#6366f1")
+  icon           String?
+  status         ProjectStatus @default(PLANNING)
+  priority       Priority      @default(MEDIUM)
+  startDate      DateTime?
+  endDate        DateTime?
+  budget         Float?
+  currency       String        @default("EUR")
+  client         String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  teams        ProjectTeam[]
+  tasks        Task[]
+  members      ProjectMember[]
+  attachments  Attachment[]
+  comments     Comment[]
+  activityLogs ActivityLog[]
+  driveFiles   DriveFile[]
+
+  @@index([organizationId])
+  @@index([status])
+}
+
+enum ProjectStatus {
+  PLANNING
+  ACTIVE
+  ON_HOLD
+  COMPLETED
+  ARCHIVED
+}
+
+model ProjectTeam {
+  id        String @id @default(cuid())
+  projectId String
+  teamId    String
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  team    Team    @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, teamId])
+}
+
+model ProjectMember {
+  id        String   @id @default(cuid())
+  projectId String
+  userId    String
+  role      String   @default("MEMBER")
+  joinedAt  DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+  @@index([projectId])
+  @@index([userId])
+}
+
+// ─── TASKS ────────────────────────────────────────────────────────────────────
+
+model TaskStatus {
+  id             String         @id @default(cuid())
+  organizationId String
+  name           String
+  color          String         @default("#6366f1")
+  icon           String?
+  position       Int            @default(0)
+  isDefault      Boolean        @default(false)
+  category       StatusCategory @default(TODO)
+  createdAt      DateTime       @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  tasks        Task[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+}
+
+enum StatusCategory {
+  BACKLOG
+  TODO
+  IN_PROGRESS
+  IN_REVIEW
+  DONE
+  CANCELLED
+}
+
+model Task {
+  id             String    @id @default(cuid())
+  organizationId String
+  projectId      String?
+  statusId       String
+  assigneeId     String?
+  creatorId      String
+  parentId       String?
+  title          String
+  description    String?   @db.Text
+  priority       Priority  @default(MEDIUM)
+  startDate      DateTime?
+  dueDate        DateTime?
+  estimateHours  Float?
+  position       Int       @default(0)
+  isBlocked      Boolean   @default(false)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  completedAt    DateTime?
+
+  status       TaskStatus      @relation(fields: [statusId], references: [id])
+  assignee     User?           @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  creator      User            @relation("TaskCreator", fields: [creatorId], references: [id])
+  project      Project?        @relation(fields: [projectId], references: [id])
+  parent       Task?           @relation("TaskSubtasks", fields: [parentId], references: [id])
+  subtasks     Task[]          @relation("TaskSubtasks")
+  dependencies TaskDependency[] @relation("DependentTask")
+  dependents   TaskDependency[] @relation("DependencyTask")
+  tags         TaskTag[]
+  attachments  Attachment[]
+  comments     Comment[]
+  timeEntries  TimeEntry[]
+  activityLogs ActivityLog[]
+  driveFiles   DriveFile[]
+
+  @@index([organizationId])
+  @@index([projectId])
+  @@index([assigneeId])
+  @@index([statusId])
+  @@index([dueDate])
+  @@index([priority])
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+model TaskDependency {
+  id          String         @id @default(cuid())
+  taskId      String
+  dependsOnId String
+  type        DependencyType @default(FINISH_TO_START)
+
+  task      Task @relation("DependentTask", fields: [taskId], references: [id], onDelete: Cascade)
+  dependsOn Task @relation("DependencyTask", fields: [dependsOnId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, dependsOnId])
+}
+
+enum DependencyType {
+  FINISH_TO_START
+  START_TO_START
+  FINISH_TO_FINISH
+  START_TO_FINISH
+}
+
+model Tag {
+  id             String  @id @default(cuid())
+  organizationId String
+  name           String
+  color          String  @default("#6366f1")
+
+  tasks TaskTag[]
+
+  @@unique([organizationId, name])
+}
+
+model TaskTag {
+  taskId String
+  tagId  String
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  tag  Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([taskId, tagId])
+}
+
+// ─── COMMENTS & ATTACHMENTS ──────────────────────────────────────────────────
+
+model Comment {
+  id        String   @id @default(cuid())
+  userId    String
+  taskId    String?
+  projectId String?
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  task    Task?    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  project Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+  @@index([projectId])
+  @@index([userId])
+}
+
+model Attachment {
+  id        String   @id @default(cuid())
+  taskId    String?
+  projectId String?
+  name      String
+  url       String
+  size      Int?
+  mimeType  String?
+  createdAt DateTime @default(now())
+
+  task    Task?    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  project Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+  @@index([projectId])
+}
+
+// ─── TIME TRACKING ────────────────────────────────────────────────────────────
+
+model TimeEntry {
+  id          String    @id @default(cuid())
+  userId      String
+  taskId      String?
+  projectId   String?
+  description String?
+  startTime   DateTime
+  endTime     DateTime?
+  hours       Float?
+  isTimer     Boolean   @default(false)
+  date        DateTime  @default(now())
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  task    Task?    @relation(fields: [taskId], references: [id])
+  project Project? @relation(fields: [projectId], references: [id])
+
+  @@index([userId])
+  @@index([taskId])
+  @@index([projectId])
+  @@index([date])
+}
+
+// ─── WORK SCHEDULE & CAPACITY ────────────────────────────────────────────────
+
+model WorkSchedule {
+  id             String @id @default(cuid())
+  userId         String @unique
+  organizationId String
+  mondayHours    Float  @default(8)
+  tuesdayHours   Float  @default(8)
+  wednesdayHours Float  @default(8)
+  thursdayHours  Float  @default(8)
+  fridayHours    Float  @default(8)
+  saturdayHours  Float  @default(0)
+  sundayHours    Float  @default(0)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+}
+
+// ─── LEAVE MANAGEMENT ────────────────────────────────────────────────────────
+
+model LeaveType {
+  id              String   @id @default(cuid())
+  organizationId  String
+  name            String
+  color           String   @default("#6366f1")
+  icon            String?
+  allowance       Float?
+  isHalfDayOk    Boolean  @default(true)
+  requireApproval Boolean  @default(true)
+  countsAsWork    Boolean  @default(false)
+  createdAt       DateTime @default(now())
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  requests     LeaveRequest[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+}
+
+model LeaveRequest {
+  id           String      @id @default(cuid())
+  userId       String
+  leaveTypeId  String
+  approverId   String?
+  startDate    DateTime
+  endDate      DateTime
+  days         Float
+  isHalfDay    Boolean     @default(false)
+  halfDayPart  String?
+  status       LeaveStatus @default(PENDING)
+  reason       String?     @db.Text
+  rejectReason String?     @db.Text
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  approvedAt   DateTime?
+
+  user      User      @relation("LeaveEmployee", fields: [userId], references: [id], onDelete: Cascade)
+  leaveType LeaveType @relation(fields: [leaveTypeId], references: [id])
+  approver  User?     @relation("LeaveApprover", fields: [approverId], references: [id])
+
+  @@index([userId])
+  @@index([leaveTypeId])
+  @@index([status])
+  @@index([startDate, endDate])
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+model Holiday {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  date           DateTime
+  isRecurring    Boolean  @default(true)
+  country        String?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([date])
+}
+
+// ─── NOTIFICATIONS ────────────────────────────────────────────────────────────
+
+model Notification {
+  id             String           @id @default(cuid())
+  userId         String
+  organizationId String
+  type           NotificationType
+  title          String
+  body           String?
+  link           String?
+  isRead         Boolean          @default(false)
+  createdAt      DateTime         @default(now())
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@index([organizationId])
+}
+
+enum NotificationType {
+  TASK_ASSIGNED
+  TASK_MENTIONED
+  TASK_COMMENT
+  TASK_DUE_SOON
+  TASK_OVERDUE
+  TASK_BLOCKED
+  PROJECT_CREATED
+  PROJECT_UPDATED
+  LEAVE_REQUESTED
+  LEAVE_APPROVED
+  LEAVE_REJECTED
+  WORKLOAD_OVERLOAD
+  GENERAL
+}
+
+// ─── ACTIVITY LOG ─────────────────────────────────────────────────────────────
+
+model ActivityLog {
+  id             String   @id @default(cuid())
+  organizationId String
+  userId         String
+  taskId         String?
+  projectId      String?
+  action         String
+  entity         String
+  entityId       String
+  oldValue       Json?
+  newValue       Json?
+  metadata       Json?
+  ipAddress      String?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id])
+  task         Task?        @relation(fields: [taskId], references: [id])
+  project      Project?     @relation(fields: [projectId], references: [id])
+
+  @@index([organizationId])
+  @@index([userId])
+  @@index([taskId])
+  @@index([projectId])
+  @@index([createdAt])
+}
+
+// ─── INTEGRATIONS ─────────────────────────────────────────────────────────────
+
+model Integration {
+  id             String            @id @default(cuid())
+  organizationId String
+  type           IntegrationType
+  status         IntegrationStatus @default(DISCONNECTED)
+  config         Json?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, type])
+}
+
+enum IntegrationType {
+  GOOGLE_CALENDAR
+  GOOGLE_DRIVE
+  SLACK
+  MICROSOFT_TEAMS
+  GITHUB
+  GITLAB
+  JIRA
+  ASANA
+}
+
+enum IntegrationStatus {
+  CONNECTED
+  DISCONNECTED
+  ERROR
+  PENDING
+}
+
+model GoogleCalendarToken {
+  id           String    @id @default(cuid())
+  userId       String    @unique
+  accessToken  String    @db.Text
+  refreshToken String?   @db.Text
+  expiresAt    DateTime?
+  calendarId   String?
+  syncEnabled  Boolean   @default(true)
+  lastSyncAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model GoogleDriveToken {
+  id           String    @id @default(cuid())
+  userId       String    @unique
+  accessToken  String    @db.Text
+  refreshToken String?   @db.Text
+  expiresAt    DateTime?
+  rootFolderId String?
+  syncEnabled  Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model DriveFile {
+  id          String   @id @default(cuid())
+  taskId      String?
+  projectId   String?
+  driveFileId String
+  name        String
+  mimeType    String?
+  webViewLink String?
+  iconLink    String?
+  createdAt   DateTime @default(now())
+
+  task    Task?    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  project Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+  @@index([projectId])
+}
+
+model CalendarEvent {
+  id             String   @id @default(cuid())
+  organizationId String
+  userId         String
+  title          String
+  description    String?  @db.Text
+  startTime      DateTime
+  endTime        DateTime
+  isAllDay       Boolean  @default(false)
+  googleEventId  String?
+  taskId         String?
+  color          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([userId])
+  @@index([startTime])
+}
