@@ -1,38 +1,66 @@
 import { NextRequest, NextResponse } from "next/server";
 import { withAuth, apiError, apiSuccess } from "@/lib/api/middleware";
 import { db } from "@/lib/db";
-import { memberships, users, roles } from "@/lib/db/schema";
+import { memberships, users, roles, organizations } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import crypto from "crypto";
 
-async function sendInvitationEmail(email: string, orgName: string, token: string) {
-  const inviteUrl = `${process.env.NEXTAUTH_URL}/register?invite=${token}&email=${encodeURIComponent(email)}`;
-  
-  await fetch("https://api.resend.com/emails", {
+async function sendInvitationEmail(
+  email: string,
+  orgName: string,
+  token: string
+) {
+  const resendApiKey = process.env.RESEND_API_KEY;
+  const emailFrom = process.env.EMAIL_FROM ?? "onboarding@resend.dev";
+  const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
+
+  if (!resendApiKey) {
+    console.warn("RESEND_API_KEY not set — invitation email skipped");
+    return;
+  }
+
+  const inviteUrl = `${baseUrl}/register?invite=${token}&email=${encodeURIComponent(email)}`;
+
+  const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
-      "Authorization": `Bearer ${process.env.RESEND_API_KEY}`,
+      Authorization: `Bearer ${resendApiKey}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      from: process.env.EMAIL_FROM,
+      from: emailFrom,
       to: email,
       subject: `Invitation à rejoindre ${orgName} sur TeamOS`,
       html: `
-        <h2>Vous avez été invité à rejoindre ${orgName}</h2>
-        <p>Cliquez sur le lien ci-dessous pour créer votre compte et rejoindre l'équipe :</p>
-        <a href="${inviteUrl}" style="background:#7c3aed;color:white;padding:12px 24px;border-radius:6px;text-decoration:none;display:inline-block;margin:16px 0;">
-          Accepter l'invitation
-        </a>
-        <p>Ce lien est valable 7 jours.</p>
+        <div style="font-family:sans-serif;max-width:480px;margin:auto">
+          <h2>Vous avez été invité à rejoindre <strong>${orgName}</strong></h2>
+          <p>Cliquez sur le bouton ci-dessous pour créer votre compte et rejoindre l'équipe.</p>
+          <a href="${inviteUrl}"
+             style="display:inline-block;padding:12px 24px;background:#6366f1;color:#fff;border-radius:6px;text-decoration:none;font-weight:600">
+            Accepter l'invitation
+          </a>
+          <p style="margin-top:24px;color:#6b7280;font-size:14px">
+            Ce lien est valable 7 jours. Si vous n'attendiez pas cet email, vous pouvez l'ignorer.
+          </p>
+        </div>
       `,
     }),
   });
+
+  if (!res.ok) {
+    const body = await res.text();
+    console.error("Resend error:", res.status, body);
+    throw new Error(`Email send failed: ${res.status}`);
+  }
+
+  const data = await res.json();
+  console.log("Resend email sent:", data.id);
 }
 
+// POST /api/invitations — invite a user to the organization
 export async function POST(req: NextRequest) {
   return withAuth(req, async (ctx) => {
-    const { organizationId: orgId, organization } = ctx;
+    const { organizationId: orgId } = ctx;
     const body = await req.json();
     const { email, roleId } = body;
 
@@ -40,6 +68,7 @@ export async function POST(req: NextRequest) {
       return apiError("Email et rôle requis", 400);
     }
 
+    // Check role belongs to org
     const [role] = await db
       .select()
       .from(roles)
@@ -48,6 +77,16 @@ export async function POST(req: NextRequest) {
 
     if (!role) return apiError("Rôle invalide", 400);
 
+    // Get organization name for the email
+    const [org] = await db
+      .select({ name: organizations.name })
+      .from(organizations)
+      .where(eq(organizations.id, orgId))
+      .limit(1);
+
+    const orgName = org?.name ?? "votre équipe";
+
+    // Check if user exists
     const [existingUser] = await db
       .select()
       .from(users)
@@ -55,14 +94,23 @@ export async function POST(req: NextRequest) {
       .limit(1);
 
     if (existingUser) {
+      // Check if already a member
       const [existing] = await db
         .select()
         .from(memberships)
-        .where(and(eq(memberships.organizationId, orgId), eq(memberships.userId, existingUser.id)))
+        .where(
+          and(
+            eq(memberships.organizationId, orgId),
+            eq(memberships.userId, existingUser.id)
+          )
+        )
         .limit(1);
 
-      if (existing) return apiError("Cet utilisateur est déjà membre de l'organisation", 409);
+      if (existing) {
+        return apiError("Cet utilisateur est déjà membre de l'organisation", 409);
+      }
 
+      // Add as member directly
       const membershipId = crypto.randomUUID();
       await db.insert(memberships).values({
         id: membershipId,
@@ -74,18 +122,30 @@ export async function POST(req: NextRequest) {
         updatedAt: new Date(),
       });
 
+      // Notify the existing user by email
+      try {
+        const token = crypto.randomUUID();
+        await sendInvitationEmail(email.toLowerCase(), orgName, token);
+      } catch (err) {
+        console.error("Failed to send notification email:", err);
+        // Don't fail the request — member was added
+      }
+
       return apiSuccess({ message: "Membre ajouté", membershipId });
     }
 
+    // New user — send invitation email
     const token = crypto.randomUUID();
-    const orgName = organization?.name ?? "TeamOS";
-    
     try {
-      await sendInvitationEmail(email, orgName, token);
-    } catch {
-      return apiError("Erreur lors de l'envoi de l'email", 500);
+      await sendInvitationEmail(email.toLowerCase(), orgName, token);
+    } catch (err) {
+      console.error("Failed to send invitation email:", err);
+      return apiError("Impossible d'envoyer l'email d'invitation. Vérifiez la configuration Resend.", 500);
     }
 
-    return apiSuccess({ message: "Invitation envoyée à " + email });
+    return apiSuccess({
+      message: "Invitation envoyée",
+      email,
+    });
   });
 }
