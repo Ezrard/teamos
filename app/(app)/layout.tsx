@@ -1,9 +1,6 @@
 export const dynamic = "force-dynamic";
 
 import { auth } from "@/lib/auth";
-// ... reste du fichier inchangé
-
-import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { Sidebar } from "@/components/layout/sidebar";
 import { db } from "@/lib/db";
