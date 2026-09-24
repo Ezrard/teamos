@@ -5,10 +5,34 @@ import { memberships, users, roles } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import crypto from "crypto";
 
-// POST /api/invitations — invite a user to the organization
+async function sendInvitationEmail(email: string, orgName: string, token: string) {
+  const inviteUrl = `${process.env.NEXTAUTH_URL}/register?invite=${token}&email=${encodeURIComponent(email)}`;
+  
+  await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${process.env.RESEND_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: process.env.EMAIL_FROM,
+      to: email,
+      subject: `Invitation à rejoindre ${orgName} sur TeamOS`,
+      html: `
+        <h2>Vous avez été invité à rejoindre ${orgName}</h2>
+        <p>Cliquez sur le lien ci-dessous pour créer votre compte et rejoindre l'équipe :</p>
+        <a href="${inviteUrl}" style="background:#7c3aed;color:white;padding:12px 24px;border-radius:6px;text-decoration:none;display:inline-block;margin:16px 0;">
+          Accepter l'invitation
+        </a>
+        <p>Ce lien est valable 7 jours.</p>
+      `,
+    }),
+  });
+}
+
 export async function POST(req: NextRequest) {
   return withAuth(req, async (ctx) => {
-    const { organizationId: orgId } = ctx;
+    const { organizationId: orgId, organization } = ctx;
     const body = await req.json();
     const { email, roleId } = body;
 
@@ -16,7 +40,6 @@ export async function POST(req: NextRequest) {
       return apiError("Email et rôle requis", 400);
     }
 
-    // Check role belongs to org
     const [role] = await db
       .select()
       .from(roles)
@@ -25,7 +48,6 @@ export async function POST(req: NextRequest) {
 
     if (!role) return apiError("Rôle invalide", 400);
 
-    // Check if user exists
     const [existingUser] = await db
       .select()
       .from(users)
@@ -33,23 +55,14 @@ export async function POST(req: NextRequest) {
       .limit(1);
 
     if (existingUser) {
-      // Check if already a member
       const [existing] = await db
         .select()
         .from(memberships)
-        .where(
-          and(
-            eq(memberships.organizationId, orgId),
-            eq(memberships.userId, existingUser.id)
-          )
-        )
+        .where(and(eq(memberships.organizationId, orgId), eq(memberships.userId, existingUser.id)))
         .limit(1);
 
-      if (existing) {
-        return apiError("Cet utilisateur est déjà membre de l'organisation", 409);
-      }
+      if (existing) return apiError("Cet utilisateur est déjà membre de l'organisation", 409);
 
-      // Add as member directly
       const membershipId = crypto.randomUUID();
       await db.insert(memberships).values({
         id: membershipId,
@@ -64,12 +77,15 @@ export async function POST(req: NextRequest) {
       return apiSuccess({ message: "Membre ajouté", membershipId });
     }
 
-    // In a real app: send email invitation with a token
-    // For demo: return success (invitation email would be sent)
-    return apiSuccess({
-      message: "Invitation envoyée",
-      email,
-      note: "En mode démo, les emails d'invitation ne sont pas envoyés.",
-    });
+    const token = crypto.randomUUID();
+    const orgName = organization?.name ?? "TeamOS";
+    
+    try {
+      await sendInvitationEmail(email, orgName, token);
+    } catch {
+      return apiError("Erreur lors de l'envoi de l'email", 500);
+    }
+
+    return apiSuccess({ message: "Invitation envoyée à " + email });
   });
 }
