@@ -5,10 +5,17 @@ import { memberships, users, roles, organizations } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import crypto from "crypto";
 
+function makeInviteToken(email: string, orgId: string, roleId: string, expMs: number): string {
+  const secret = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET ?? "fallback-secret";
+  const payload = `${email}|${orgId}|${roleId}|${expMs}`;
+  return crypto.createHmac("sha256", secret).update(payload).digest("hex");
+}
+
 async function sendInvitationEmail(
   email: string,
   orgName: string,
-  token: string
+  orgId: string,
+  roleId: string,
 ) {
   const resendApiKey = process.env.RESEND_API_KEY;
   const emailFrom = process.env.EMAIL_FROM ?? "onboarding@resend.dev";
@@ -19,7 +26,9 @@ async function sendInvitationEmail(
     return;
   }
 
-  const inviteUrl = `${baseUrl}/register?invite=${token}&email=${encodeURIComponent(email)}`;
+  const expMs = Date.now() + 7 * 24 * 60 * 60 * 1000; // 7 days
+  const token = makeInviteToken(email, orgId, roleId, expMs);
+  const inviteUrl = `${baseUrl}/register?invite=${token}&email=${encodeURIComponent(email)}&orgId=${orgId}&roleId=${roleId}&exp=${expMs}`;
 
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -124,8 +133,7 @@ export async function POST(req: NextRequest) {
 
       // Notify the existing user by email
       try {
-        const token = crypto.randomUUID();
-        await sendInvitationEmail(email.toLowerCase(), orgName, token);
+        await sendInvitationEmail(email.toLowerCase(), orgName, orgId, roleId);
       } catch (err) {
         console.error("Failed to send notification email:", err);
         // Don't fail the request — member was added
@@ -135,9 +143,8 @@ export async function POST(req: NextRequest) {
     }
 
     // New user — send invitation email
-    const token = crypto.randomUUID();
     try {
-      await sendInvitationEmail(email.toLowerCase(), orgName, token);
+      await sendInvitationEmail(email.toLowerCase(), orgName, orgId, roleId);
     } catch (err) {
       console.error("Failed to send invitation email:", err);
       return apiError("Impossible d'envoyer l'email d'invitation. Vérifiez la configuration Resend.", 500);
