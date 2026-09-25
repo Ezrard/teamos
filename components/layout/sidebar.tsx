@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
@@ -24,6 +25,7 @@ import {
   ClipboardList,
   Building2,
   Bell,
+  LogOut,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -207,9 +209,9 @@ export function Sidebar({ user, organizationName, unreadNotifications = 0 }: Sid
       </div>
 
       {/* User */}
-      <div className="border-t p-3">
+      <div className="border-t p-3 space-y-1">
         <Link
-          href="/settings/profile"
+          href="/settings"
           className="flex items-center gap-2.5 rounded-md p-1.5 hover:bg-sidebar-accent transition-colors"
         >
           <Avatar className="h-7 w-7">
@@ -223,6 +225,13 @@ export function Sidebar({ user, organizationName, unreadNotifications = 0 }: Sid
             <p className="text-[10px] text-muted-foreground truncate">{user?.email}</p>
           </div>
         </Link>
+        <button
+          onClick={() => signOut({ callbackUrl: "/login" })}
+          className="flex items-center gap-2.5 w-full rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
+        >
+          <LogOut className="h-3.5 w-3.5 shrink-0" />
+          Se déconnecter
+        </button>
       </div>
     </aside>
   );
