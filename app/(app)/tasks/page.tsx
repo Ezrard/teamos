@@ -5,19 +5,13 @@ import { tasks, taskStatuses, users, projects, memberships } from "@/lib/db/sche
 import { eq, and, isNull } from "drizzle-orm";
 import { Header } from "@/components/layout/header";
 import { TasksClient } from "@/components/tasks/tasks-client";
+import { getActiveOrgId } from "@/lib/get-org";
 
 export default async function TasksPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
 
-  const [membership] = await db
-    .select()
-    .from(memberships)
-    .where(and(eq(memberships.userId, session.user.id), eq(memberships.status, "ACTIVE")))
-    .limit(1);
-
-  if (!membership) redirect("/onboarding");
-  const orgId = membership.organizationId;
+  const orgId = await getActiveOrgId(session.user.id);
 
   const [allTasks, statuses, allUsers, allProjects] = await Promise.all([
     db
