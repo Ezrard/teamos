@@ -43,15 +43,17 @@ export default async function AppLayout({
       ? allMemberships.find((m) => m.organization.id === selectedOrgId)
       : null) ?? allMemberships[0];
 
+  const activeOrgId = activeMembership.organization.id;
+
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       <Sidebar
         user={session.user}
-        organizationId={activeMembership.organization.id}
         organizationName={activeMembership.organization.name}
         organizations={allMemberships.map((m) => ({
           id: m.organization.id,
           name: m.organization.name,
+          active: m.organization.id === activeOrgId,
         }))}
       />
       <main className="flex-1 flex flex-col overflow-hidden">
