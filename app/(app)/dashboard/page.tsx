@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getActiveOrgId } from "@/lib/get-org";
 import { db } from "@/lib/db";
 import {
   tasks,
@@ -32,20 +33,7 @@ export default async function DashboardPage() {
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
   const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
 
-  // Get user's organization
-  const [membership] = await db
-    .select()
-    .from(memberships)
-    .where(
-      and(
-        eq(memberships.userId, session.user.id),
-        eq(memberships.status, "ACTIVE")
-      )
-    )
-    .limit(1);
-
-  if (!membership) redirect("/onboarding");
-  const orgId = membership.organizationId;
+  const orgId = await getActiveOrgId(session.user.id);
 
   // Fetch dashboard data
   const [orgTasks, allProjects, allMembers, absentToday, weekEntries, doneStatuses] =
