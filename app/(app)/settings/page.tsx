@@ -68,7 +68,7 @@ export default async function SettingsPage() {
     name: string;
     color: string;
     isSystem: boolean;
-    permissions: { resource: string; action: string; scope: string }[];
+    permissions: { resource: string; action: string; scope: "ALL" | "TEAM" | "OWN" }[];
   }[] = [];
 
   if (isAdmin) {
