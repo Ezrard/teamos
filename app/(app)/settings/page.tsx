@@ -95,7 +95,10 @@ export default async function SettingsPage() {
       name: r.name,
       color: r.color,
       isSystem: r.isSystem,
-      permissions: permsPerRole[i],
+      permissions: permsPerRole[i].map((p) => ({
+        ...p,
+        scope: p.scope as "ALL" | "TEAM" | "OWN",
+      })),
     }));
   }
 
@@ -126,7 +129,7 @@ export default async function SettingsPage() {
     const roleMap = Object.fromEntries(allOrgRoles.map((r) => [r.id, r.name]));
 
     allMembers = membersRaw
-      .filter((m) => m.userId !== session.user.id)
+      .filter((m) => m.userId !== session.user!.id)
       .map((m) => ({
         id: m.userId,
         name: m.userName ?? m.userEmail ?? "—",
