@@ -17,8 +17,9 @@ interface PermissionInput {
 // PUT /api/roles/[id]/permissions — replace permissions for a role
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   const session = await auth();
   if (!session?.user?.id)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -53,7 +54,7 @@ export async function PUT(
   const [targetRole] = await db
     .select()
     .from(roles)
-    .where(and(eq(roles.id, params.id), eq(roles.organizationId, orgId)))
+    .where(and(eq(roles.id, id), eq(roles.organizationId, orgId)))
     .limit(1);
 
   if (!targetRole) return NextResponse.json({ error: "Role not found" }, { status: 404 });
@@ -79,13 +80,13 @@ export async function PUT(
   if (!valid) return NextResponse.json({ error: "Invalid permissions" }, { status: 400 });
 
   // Replace: delete all existing, insert new
-  await db.delete(rolePermissions).where(eq(rolePermissions.roleId, params.id));
+  await db.delete(rolePermissions).where(eq(rolePermissions.roleId, id));
 
   if (permissions.length > 0) {
     await db.insert(rolePermissions).values(
       permissions.map((p) => ({
         id: generateId(),
-        roleId: params.id,
+        roleId: id,
         resource: p.resource,
         action: p.action,
         scope: p.scope,
