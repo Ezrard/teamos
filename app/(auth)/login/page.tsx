@@ -158,7 +158,7 @@ export default function LoginPage() {
 
         {/* Demo access */}
         <div className="text-xs text-center text-muted-foreground/70 mt-1 p-2 bg-muted/50 rounded-md">
-          <strong>Démo</strong> — Email: <code>demo@teamos.app</code> | Mot de passe: <code>demo1234</code>
+          <strong>Démo</strong> — Email: <code>demo@task.io</code> | Mot de passe: <code>demo1234</code>
         </div>
       </CardFooter>
     </Card>
