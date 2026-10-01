@@ -138,7 +138,7 @@ export default function OnboardingPage() {
                 Identifiant unique (URL)
               </label>
               <div className="flex items-center gap-1">
-                <span className="text-sm text-muted-foreground whitespace-nowrap">teamos.app/</span>
+                <span className="text-sm text-muted-foreground whitespace-nowrap">task.io/</span>
                 <Input
                   {...register("slug")}
                   placeholder="mon-organisation"
