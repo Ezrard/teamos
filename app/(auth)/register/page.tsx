@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
@@ -24,7 +24,7 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>;
 
-export default function RegisterPage() {
+function RegisterForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
@@ -86,7 +86,7 @@ export default function RegisterPage() {
       // If there's an invite, accept it to join the org directly
       if (hasInvite) {
         try {
-          await fetch("/api/invitations/accept", {
+          const acceptRes = await fetch("/api/invitations/accept", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -97,10 +97,12 @@ export default function RegisterPage() {
               exp: inviteExp,
             }),
           });
+          // Whether accepted or already member, go to dashboard
+          router.push("/dashboard");
         } catch {
-          // Accept failed — layout will redirect to onboarding if no org
+          // Accept failed — still send to dashboard, layout will redirect to onboarding if no org
+          router.push("/dashboard");
         }
-        router.push("/dashboard");
       } else {
         router.push("/onboarding");
       }
@@ -114,6 +116,7 @@ export default function RegisterPage() {
 
   const handleGoogleSignIn = async () => {
     setGoogleLoading(true);
+    // If invited, pass orgId etc. as state via callbackUrl so we can handle it after OAuth
     const callbackUrl = hasInvite
       ? `/api/invitations/accept-oauth?orgId=${inviteOrgId}&roleId=${inviteRoleId}&token=${inviteToken}&email=${encodeURIComponent(inviteEmail!)}&exp=${inviteExp}`
       : "/onboarding";
@@ -189,7 +192,6 @@ export default function RegisterPage() {
               placeholder="Email professionnel"
               className="h-10"
               autoComplete="email"
-              readOnly={hasInvite}
             />
             {errors.email && (
               <p className="text-xs text-destructive mt-1">{errors.email.message}</p>
@@ -245,5 +247,13 @@ export default function RegisterPage() {
         </p>
       </CardFooter>
     </Card>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={null}>
+      <RegisterForm />
+    </Suspense>
   );
 }
