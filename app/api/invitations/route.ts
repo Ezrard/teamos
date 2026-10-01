@@ -39,16 +39,19 @@ async function sendInvitationEmail(
     body: JSON.stringify({
       from: emailFrom,
       to: email,
-      subject: `Invitation à rejoindre ${orgName} sur TeamOS`,
+      subject: `Invitation à rejoindre ${orgName} sur TASK.IO`,
       html: `
-        <div style="font-family:sans-serif;max-width:480px;margin:auto">
-          <h2>Vous avez été invité à rejoindre <strong>${orgName}</strong></h2>
-          <p>Cliquez sur le bouton ci-dessous pour créer votre compte et rejoindre l'équipe.</p>
+        <div style="font-family:sans-serif;max-width:480px;margin:auto;padding:32px 24px">
+          <div style="margin-bottom:24px">
+            <span style="font-size:20px;font-weight:700;color:#6D3DF5;letter-spacing:-0.5px">TASK.IO</span>
+          </div>
+          <h2 style="color:#111827;margin-bottom:12px">Invitation à rejoindre <strong>${orgName}</strong></h2>
+          <p style="color:#6b7280;margin-bottom:24px">Cliquez sur le bouton ci-dessous pour créer votre compte et rejoindre l'équipe.</p>
           <a href="${inviteUrl}"
-             style="display:inline-block;padding:12px 24px;background:#6366f1;color:#fff;border-radius:6px;text-decoration:none;font-weight:600">
+             style="display:inline-block;padding:12px 24px;background:#6D3DF5;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">
             Accepter l'invitation
           </a>
-          <p style="margin-top:24px;color:#6b7280;font-size:14px">
+          <p style="margin-top:24px;color:#9ca3af;font-size:13px">
             Ce lien est valable 7 jours. Si vous n'attendiez pas cet email, vous pouvez l'ignorer.
           </p>
         </div>
