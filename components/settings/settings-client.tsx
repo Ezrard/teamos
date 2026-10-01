@@ -480,7 +480,7 @@ export function SettingsClient({
                 </label>
                 <div className="flex items-center gap-1">
                   <span className="text-sm text-muted-foreground whitespace-nowrap">
-                    teamos.app/
+                    task.io/
                   </span>
                   <Input value={org.slug} readOnly className="h-9 text-sm bg-muted" />
                 </div>
