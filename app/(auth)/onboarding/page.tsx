@@ -98,7 +98,7 @@ export default function OnboardingPage() {
         </div>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)}>
+      <div>
         {step === 1 ? (
           <div className="bg-card rounded-xl border shadow-lg p-6 space-y-5">
             <div className="flex items-center gap-3 mb-2">
@@ -224,14 +224,14 @@ export default function OnboardingPage() {
               >
                 Retour
               </Button>
-              <Button type="submit" className="flex-1 h-10" disabled={loading}>
+              <Button type="button" className="flex-1 h-10" disabled={loading} onClick={handleSubmit(onSubmit)}>
                 {loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
                 Créer l'espace
               </Button>
             </div>
           </div>
         )}
-      </form>
+      </div>
 
       <p className="text-center text-xs text-muted-foreground">
         Vous pouvez modifier ces informations à tout moment dans les paramètres
