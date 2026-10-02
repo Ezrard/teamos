@@ -2,21 +2,9 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2, Building2, Users, CheckCircle2 } from "lucide-react";
-
-const schema = z.object({
-  name: z.string().min(2, "Le nom de l'organisation doit contenir au moins 2 caractères").max(200),
-  slug: z.string().min(2).max(50).regex(/^[a-z0-9-]+$/, "Uniquement lettres minuscules, chiffres et tirets"),
-  industry: z.string().optional(),
-  size: z.enum(["1-10", "11-50", "51-200", "200+"]),
-});
-
-type FormData = z.infer<typeof schema>;
 
 const INDUSTRIES = [
   "Technologie", "Marketing & Agence", "Conseil", "Finance",
@@ -36,19 +24,15 @@ export default function OnboardingPage() {
   const [error, setError] = useState("");
   const [step, setStep] = useState<1 | 2>(1);
 
-  const { register, watch, setValue, getValues, trigger, formState: { errors } } = useForm<FormData>({
-    resolver: zodResolver(schema),
-    defaultValues: { size: "1-10" },
-  });
+  const [name, setName] = useState("");
+  const [slug, setSlug] = useState("");
+  const [industry, setIndustry] = useState("");
+  const [size, setSize] = useState("1-10");
 
-  const selectedSize = watch("size");
-  const orgName = watch("name");
-
-  // Auto-generate slug from name
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    setValue("name", value);
-    const slug = value
+    setName(value);
+    const generated = value
       .toLowerCase()
       .normalize("NFD")
       .replace(/[̀-ͯ]/g, "")
@@ -56,13 +40,11 @@ export default function OnboardingPage() {
       .replace(/\s+/g, "-")
       .replace(/-+/g, "-")
       .slice(0, 50);
-    setValue("slug", slug);
+    setSlug(generated);
   };
 
-  const onSubmit = async () => {
-    const valid = await trigger();
-    if (!valid) return;
-    const data = getValues();
+  const handleCreate = async () => {
+    if (!name || name.length < 2) return;
     setLoading(true);
     setError("");
 
@@ -70,7 +52,7 @@ export default function OnboardingPage() {
       const res = await fetch("/api/organizations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify({ name, slug, industry, size }),
       });
 
       if (!res.ok) {
@@ -122,17 +104,17 @@ export default function OnboardingPage() {
 
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
-                Nom de l'organisation *
+                Nom de l&apos;organisation *
               </label>
               <Input
-                value={orgName ?? ""}
+                value={name}
                 onChange={handleNameChange}
                 placeholder="Ex: Acme Corp, Mon Agence..."
                 className="h-10"
                 autoFocus
               />
-              {errors.name && (
-                <p className="text-xs text-destructive mt-1">{errors.name.message}</p>
+              {name.length > 0 && name.length < 2 && (
+                <p className="text-xs text-destructive mt-1">Au moins 2 caractères</p>
               )}
             </div>
 
@@ -143,22 +125,21 @@ export default function OnboardingPage() {
               <div className="flex items-center gap-1">
                 <span className="text-sm text-muted-foreground whitespace-nowrap">task.io/</span>
                 <Input
-                  {...register("slug")}
+                  value={slug}
+                  onChange={(e) => setSlug(e.target.value)}
                   placeholder="mon-organisation"
                   className="h-10"
                 />
               </div>
-              {errors.slug && (
-                <p className="text-xs text-destructive mt-1">{errors.slug.message}</p>
-              )}
             </div>
 
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
-                Secteur d'activité
+                Secteur d&apos;activité
               </label>
               <select
-                {...register("industry")}
+                value={industry}
+                onChange={(e) => setIndustry(e.target.value)}
                 className="flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               >
                 <option value="">Sélectionner...</option>
@@ -172,7 +153,7 @@ export default function OnboardingPage() {
               type="button"
               className="w-full h-10"
               onClick={() => setStep(2)}
-              disabled={!orgName || orgName.length < 2}
+              disabled={!name || name.length < 2}
             >
               Continuer
             </Button>
@@ -184,35 +165,41 @@ export default function OnboardingPage() {
                 <Users className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <h2 className="font-semibold text-lg">Taille de l'équipe</h2>
+                <h2 className="font-semibold text-lg">Taille de l&apos;équipe</h2>
                 <p className="text-sm text-muted-foreground">Pour personnaliser votre expérience</p>
               </div>
             </div>
 
+            {error && (
+              <div className="text-sm text-destructive bg-destructive/10 px-3 py-2 rounded-md">
+                {error}
+              </div>
+            )}
+
             <div className="space-y-2">
-              {TEAM_SIZES.map((size) => (
+              {TEAM_SIZES.map((s) => (
                 <button
-                  key={size.value}
+                  key={s.value}
                   type="button"
-                  onClick={() => setValue("size", size.value as FormData["size"])}
+                  onClick={() => setSize(s.value)}
                   className={`w-full flex items-center gap-3 p-3 rounded-lg border transition-all text-left ${
-                    selectedSize === size.value
+                    size === s.value
                       ? "border-primary bg-primary/5 ring-1 ring-primary/20"
                       : "border-border hover:border-primary/30 hover:bg-muted/30"
                   }`}
                 >
                   <div className={`w-4 h-4 rounded-full border-2 shrink-0 transition-colors ${
-                    selectedSize === size.value ? "border-primary bg-primary" : "border-muted-foreground"
+                    size === s.value ? "border-primary bg-primary" : "border-muted-foreground"
                   }`}>
-                    {selectedSize === size.value && (
+                    {size === s.value && (
                       <div className="w-full h-full rounded-full flex items-center justify-center">
                         <div className="w-1.5 h-1.5 bg-white rounded-full" />
                       </div>
                     )}
                   </div>
                   <div>
-                    <p className="text-sm font-medium">{size.label}</p>
-                    <p className="text-xs text-muted-foreground">{size.desc}</p>
+                    <p className="text-sm font-medium">{s.label}</p>
+                    <p className="text-xs text-muted-foreground">{s.desc}</p>
                   </div>
                 </button>
               ))}
@@ -227,9 +214,14 @@ export default function OnboardingPage() {
               >
                 Retour
               </Button>
-              <Button type="button" className="flex-1 h-10" disabled={loading} onClick={onSubmit}>
+              <Button
+                type="button"
+                className="flex-1 h-10"
+                disabled={loading}
+                onClick={handleCreate}
+              >
                 {loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-                Créer l'espace
+                Créer l&apos;espace
               </Button>
             </div>
           </div>
