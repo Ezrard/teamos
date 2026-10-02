@@ -76,34 +76,56 @@ function StatCard({
   accentColor?: string;
 }) {
   const variantStyles = {
-    default: { text: "text-primary", bg: "bg-primary/8" },
-    warning: { text: "text-amber-600", bg: "bg-amber-50" },
-    danger: { text: "text-red-600", bg: "bg-red-50" },
-    success: { text: "text-emerald-600", bg: "bg-emerald-50" },
+    default: {
+      text: "text-primary",
+      bg: "bg-primary/10",
+      border: "border-l-primary/50",
+      gradient: "from-primary/5 to-transparent",
+    },
+    warning: {
+      text: "text-amber-600",
+      bg: "bg-amber-100",
+      border: "border-l-amber-400",
+      gradient: "from-amber-50 to-transparent",
+    },
+    danger: {
+      text: "text-red-600",
+      bg: "bg-red-100",
+      border: "border-l-red-400",
+      gradient: "from-red-50 to-transparent",
+    },
+    success: {
+      text: "text-emerald-600",
+      bg: "bg-emerald-100",
+      border: "border-l-emerald-400",
+      gradient: "from-emerald-50 to-transparent",
+    },
   };
 
   const s = variantStyles[variant];
 
   const content = (
     <Card className={cn(
-      "bg-card border border-border transition-all duration-150",
-      href && "hover:border-primary/30 hover:shadow-md cursor-pointer"
+      "relative overflow-hidden border-l-[3px] transition-all duration-200",
+      s.border,
+      href && "hover:shadow-lg hover:-translate-y-0.5 cursor-pointer"
     )}>
-      <CardContent className="p-5">
+      <div className={cn("absolute inset-0 bg-gradient-to-r opacity-60", s.gradient)} />
+      <CardContent className="relative p-5">
         <div className="flex items-start justify-between gap-3">
-          <div className="space-y-1.5 min-w-0">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+          <div className="space-y-1 min-w-0">
+            <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/60">
               {label}
             </p>
-            <p className={cn("text-2xl font-bold tracking-tight", s.text)}>
+            <p className={cn("text-3xl font-extrabold tracking-tight tabular-nums", s.text)}>
               {value}
             </p>
             {sublabel && (
-              <p className="text-[12px] text-muted-foreground">{sublabel}</p>
+              <p className="text-[12px] text-muted-foreground mt-0.5">{sublabel}</p>
             )}
           </div>
-          <div className={cn("p-2.5 rounded-xl shrink-0", s.bg)}>
-            <Icon className={cn("h-4 w-4", s.text)} />
+          <div className={cn("p-3 rounded-2xl shrink-0", s.bg)}>
+            <Icon className={cn("h-5 w-5", s.text)} />
           </div>
         </div>
       </CardContent>
