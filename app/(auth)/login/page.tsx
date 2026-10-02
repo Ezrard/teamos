@@ -148,18 +148,13 @@ export default function LoginPage() {
         </form>
       </CardContent>
 
-      <CardFooter className="flex flex-col gap-2 pt-0">
-        <p className="text-sm text-muted-foreground text-center">
+      <CardFooter className="pt-0">
+        <p className="text-sm text-muted-foreground text-center w-full">
           Pas encore de compte ?{" "}
           <Link href="/register" className="text-primary font-medium hover:underline">
             Créer un compte
           </Link>
         </p>
-
-        {/* Demo access */}
-        <div className="text-xs text-center text-muted-foreground/70 mt-1 p-2 bg-muted/50 rounded-md">
-          <strong>Démo</strong> — Email: <code>demo@task.io</code> | Mot de passe: <code>demo1234</code>
-        </div>
       </CardFooter>
     </Card>
   );
