@@ -13,7 +13,7 @@ const schema = z.object({
   name: z.string().min(2, "Le nom de l'organisation doit contenir au moins 2 caractères").max(200),
   slug: z.string().min(2).max(50).regex(/^[a-z0-9-]+$/, "Uniquement lettres minuscules, chiffres et tirets"),
   industry: z.string().optional(),
-  size: z.enum(["1-10", "11-50", "51-200", "200+"]).optional().default("1-10"),
+  size: z.enum(["1-10", "11-50", "51-200", "200+"]),
 });
 
 type FormData = z.infer<typeof schema>;
