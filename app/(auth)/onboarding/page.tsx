@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useState } from "react";
-import { useRouter } from "next/navigation";
+import React, { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2, Building2, Users, CheckCircle2 } from "lucide-react";
+import { createOrganization } from "./actions";
 
 const INDUSTRIES = [
   "Technologie", "Marketing & Agence", "Conseil", "Finance",
@@ -19,8 +19,7 @@ const TEAM_SIZES = [
 ];
 
 export default function OnboardingPage() {
-  const router = useRouter();
-  const [loading, setLoading] = useState(false);
+  const [isPending, startTransition] = useTransition();
   const [error, setError] = useState("");
   const [step, setStep] = useState<1 | 2>(1);
 
@@ -43,31 +42,14 @@ export default function OnboardingPage() {
     setSlug(generated);
   };
 
-  const handleCreate = async () => {
-    if (!name || name.length < 2) return;
-    setLoading(true);
+  const handleCreate = () => {
     setError("");
-
-    try {
-      const res = await fetch("/api/organizations", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, slug, industry, size }),
-      });
-
-      if (!res.ok) {
-        const body = await res.json();
-        setError(body.error ?? "Erreur lors de la création");
-        return;
+    startTransition(async () => {
+      const result = await createOrganization({ name, slug, industry, size });
+      if (result?.error) {
+        setError(result.error);
       }
-
-      router.push("/dashboard");
-      router.refresh();
-    } catch {
-      setError("Une erreur est survenue");
-    } finally {
-      setLoading(false);
-    }
+    });
   };
 
   return (
@@ -95,12 +77,6 @@ export default function OnboardingPage() {
                 <p className="text-sm text-muted-foreground">Donnez un nom à votre espace de travail</p>
               </div>
             </div>
-
-            {error && (
-              <div className="text-sm text-destructive bg-destructive/10 px-3 py-2 rounded-md">
-                {error}
-              </div>
-            )}
 
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
@@ -211,16 +187,17 @@ export default function OnboardingPage() {
                 variant="outline"
                 className="flex-1 h-10"
                 onClick={() => setStep(1)}
+                disabled={isPending}
               >
                 Retour
               </Button>
               <Button
                 type="button"
                 className="flex-1 h-10"
-                disabled={loading}
+                disabled={isPending}
                 onClick={handleCreate}
               >
-                {loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                {isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
                 Créer l&apos;espace
               </Button>
             </div>
