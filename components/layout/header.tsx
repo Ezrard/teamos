@@ -54,14 +54,14 @@ export function Header({
   );
 
   return (
-    <header className="flex items-center gap-4 h-14 px-6 border-b bg-background/80 backdrop-blur-sm shrink-0 sticky top-0 z-20">
+    <header className="flex items-center gap-4 h-14 px-6 border-b bg-background/90 backdrop-blur-md shrink-0 sticky top-0 z-20 shadow-sm">
       {/* Breadcrumb / Title */}
       <div className="flex-1 min-w-0">
         {title && (
-          <div className="flex items-center gap-2">
-            <h1 className="text-[15px] font-semibold text-foreground truncate">{title}</h1>
+          <div className="flex flex-col">
+            <h1 className="text-[15px] font-bold text-foreground truncate leading-tight">{title}</h1>
             {subtitle && (
-              <span className="text-sm text-muted-foreground">· {subtitle}</span>
+              <span className="text-[11px] text-muted-foreground capitalize">{subtitle}</span>
             )}
           </div>
         )}
