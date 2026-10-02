@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useForm, type Resolver } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
@@ -36,8 +36,8 @@ export default function OnboardingPage() {
   const [error, setError] = useState("");
   const [step, setStep] = useState<1 | 2>(1);
 
-  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<FormData>({
-    resolver: zodResolver(schema) as Resolver<FormData>,
+  const { register, watch, setValue, getValues, trigger, formState: { errors } } = useForm<FormData>({
+    resolver: zodResolver(schema),
     defaultValues: { size: "1-10" },
   });
 
@@ -59,7 +59,10 @@ export default function OnboardingPage() {
     setValue("slug", slug);
   };
 
-  const onSubmit = async (data: FormData) => {
+  const onSubmit = async () => {
+    const valid = await trigger();
+    if (!valid) return;
+    const data = getValues();
     setLoading(true);
     setError("");
 
@@ -224,7 +227,7 @@ export default function OnboardingPage() {
               >
                 Retour
               </Button>
-              <Button type="button" className="flex-1 h-10" disabled={loading} onClick={handleSubmit(onSubmit)}>
+              <Button type="button" className="flex-1 h-10" disabled={loading} onClick={onSubmit}>
                 {loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
                 Créer l'espace
               </Button>
