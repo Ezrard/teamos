@@ -126,6 +126,7 @@ export function Sidebar({
         "flex flex-col h-screen border-r bg-sidebar shrink-0 transition-all duration-200",
         collapsed ? "w-14" : "w-56"
       )}
+      style={{ colorScheme: "dark" }}
     >
       {/* Logo + Org Switcher */}
       <div className="relative border-b border-sidebar-border">
@@ -147,12 +148,12 @@ export function Sidebar({
                 onClick={() => setOrgDropdownOpen((o) => !o)}
                 className="flex-1 flex items-center gap-1 text-left min-w-0"
               >
-                <span className="text-[13px] font-semibold truncate text-sidebar-foreground">
+                <span className="text-[13px] font-semibold truncate text-sidebar-accent-foreground">
                   {organizationName ?? "TASK.IO"}
                 </span>
                 <ChevronDown
                   className={cn(
-                    "h-3 w-3 text-muted-foreground shrink-0 transition-transform",
+                    "h-3 w-3 text-sidebar-foreground/50 shrink-0 transition-transform",
                     orgDropdownOpen && "rotate-180"
                   )}
                 />
@@ -160,7 +161,7 @@ export function Sidebar({
 
               <button
                 onClick={() => setCollapsed(true)}
-                className="h-6 w-6 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-sidebar-accent transition-colors shrink-0"
+                className="h-6 w-6 flex items-center justify-center rounded text-sidebar-foreground/50 hover:text-sidebar-accent-foreground hover:bg-sidebar-accent transition-colors shrink-0"
               >
                 <PanelLeftClose className="h-3.5 w-3.5" />
               </button>
@@ -215,7 +216,7 @@ export function Sidebar({
         {navGroups.map((group, gi) => (
           <div key={gi}>
             {group.label && !collapsed && (
-              <p className="px-2 mb-1 text-[10px] font-semibold tracking-wider text-muted-foreground/60 uppercase">
+              <p className="px-2 mb-1 text-[10px] font-semibold tracking-wider text-sidebar-foreground/40 uppercase">
                 {group.label}
               </p>
             )}
@@ -238,7 +239,7 @@ export function Sidebar({
                       className={cn(
                         "shrink-0 transition-colors",
                         collapsed ? "h-[18px] w-[18px]" : "h-4 w-4",
-                        active ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
+                        active ? "text-primary" : "text-sidebar-foreground/60 group-hover:text-sidebar-accent-foreground"
                       )}
                     />
                     {!collapsed && (
@@ -277,7 +278,7 @@ export function Sidebar({
           )}
         >
           <div className="relative shrink-0">
-            <Bell className="h-4 w-4 text-muted-foreground" />
+            <Bell className="h-4 w-4 text-sidebar-foreground/60" />
             {unreadNotifications > 0 && (
               <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-destructive text-[9px] text-white font-bold">
                 {unreadNotifications > 9 ? "9+" : unreadNotifications}
@@ -309,7 +310,7 @@ export function Sidebar({
           <Settings
             className={cn(
               "h-4 w-4 shrink-0",
-              isActive("/settings") ? "text-primary" : "text-muted-foreground"
+              isActive("/settings") ? "text-primary" : "text-sidebar-foreground/60"
             )}
           />
           {!collapsed && <span className="flex-1">Paramètres</span>}
@@ -328,10 +329,10 @@ export function Sidebar({
             </Avatar>
             {!collapsed && (
               <div className="flex-1 min-w-0">
-                <p className="text-[12px] font-semibold truncate text-foreground">
+                <p className="text-[12px] font-semibold truncate text-sidebar-accent-foreground">
                   {user?.name ?? "Utilisateur"}
                 </p>
-                <p className="text-[10px] text-muted-foreground truncate">{user?.email}</p>
+                <p className="text-[10px] text-sidebar-foreground/50 truncate">{user?.email}</p>
               </div>
             )}
           </Link>
@@ -339,7 +340,7 @@ export function Sidebar({
             <button
               onClick={() => signOut({ callbackUrl: "/login" })}
               title="Se déconnecter"
-              className="h-6 w-6 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
+              className="h-6 w-6 flex items-center justify-center rounded text-sidebar-foreground/50 hover:text-sidebar-accent-foreground hover:bg-sidebar-accent transition-colors shrink-0"
             >
               <LogOut className="h-3.5 w-3.5" />
             </button>
@@ -349,7 +350,7 @@ export function Sidebar({
           <button
             onClick={() => signOut({ callbackUrl: "/login" })}
             title="Se déconnecter"
-            className="flex items-center justify-center w-full mt-1 py-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            className="flex items-center justify-center w-full mt-1 py-1 rounded text-sidebar-foreground/50 hover:text-sidebar-accent-foreground hover:bg-sidebar-accent transition-colors"
           >
             <LogOut className="h-3.5 w-3.5" />
           </button>
